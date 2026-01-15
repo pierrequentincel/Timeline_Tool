@@ -392,6 +392,33 @@
             font-size: 9px;
         }
 
+        /* Task with delay - no right border radius */
+        .task-bar.has-delay {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        /* Delay bar */
+        .task-delay-bar {
+            position: absolute;
+            height: 24px;
+            top: 8px;
+            background-color: var(--cel-orange);
+            border-top-right-radius: 4px;
+            border-bottom-right-radius: 4px;
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .task-delay-bar.small {
+            height: 16px;
+            top: 12px;
+            border-top-right-radius: 2px;
+            border-bottom-right-radius: 2px;
+        }
+
         /* Milestones */
         .milestone {
             position: absolute;
@@ -1190,8 +1217,11 @@
             const right = getPositionFromDate(task.endDate);
             const width = Math.max(right - left, 20);
 
+            const hasDelay = task.delayedTo && task.delayedTo > task.endDate;
+            const isSmall = section.type === 'governance';
+
             const taskEl = document.createElement('div');
-            taskEl.className = `task-bar ${section.type === 'governance' ? 'small' : ''}`;
+            taskEl.className = `task-bar ${isSmall ? 'small' : ''} ${hasDelay ? 'has-delay' : ''}`;
             taskEl.style.left = `${left}px`;
             taskEl.style.width = `${width}px`;
             taskEl.style.backgroundColor = task.color || section.color;
@@ -1232,6 +1262,21 @@
             });
 
             gridRow.appendChild(taskEl);
+
+            // Render delay bar if task has delay
+            if (hasDelay) {
+                const delayLeft = getPositionFromDate(task.endDate);
+                const delayRight = getPositionFromDate(task.delayedTo);
+                const delayWidth = Math.max(delayRight - delayLeft, 5);
+
+                const delayEl = document.createElement('div');
+                delayEl.className = `task-delay-bar ${isSmall ? 'small' : ''}`;
+                delayEl.style.left = `${delayLeft}px`;
+                delayEl.style.width = `${delayWidth}px`;
+                delayEl.dataset.taskId = task.id;
+
+                gridRow.appendChild(delayEl);
+            }
         }
 
         function renderMilestone(milestone, gridRow, section, row) {
@@ -1599,20 +1644,37 @@
                     </div>
                 </div>
                 <div class="form-group">
+                    <label>Delayed To (optional)</label>
+                    <input type="date" id="task-delayed">
+                </div>
+                <div class="form-group">
                     <label>Color</label>
                     <input type="color" id="task-color" value="${section.color}">
                 </div>
             `;
 
             openModal('Add Task', content, () => {
+                const endDate = document.getElementById('task-end').value;
+                const delayedTo = document.getElementById('task-delayed').value;
+
+                // Validate delayed date is after end date
+                if (delayedTo && delayedTo <= endDate) {
+                    alert('Delayed To date must be later than End Date');
+                    return;
+                }
+
                 const task = {
                     id: 'task-' + Date.now(),
                     name: document.getElementById('task-name').value,
                     startDate: document.getElementById('task-start').value,
-                    endDate: document.getElementById('task-end').value,
+                    endDate: endDate,
                     color: document.getElementById('task-color').value,
                     dependencies: []
                 };
+
+                if (delayedTo) {
+                    task.delayedTo = delayedTo;
+                }
 
                 row.tasks = row.tasks || [];
                 row.tasks.push(task);
@@ -1984,20 +2046,37 @@
                     </div>
                 </div>
                 <div class="form-group">
+                    <label>Delayed To (optional)</label>
+                    <input type="date" id="task-delayed">
+                </div>
+                <div class="form-group">
                     <label>Color</label>
                     <input type="color" id="task-color" value="${section.color}">
                 </div>
             `;
 
             openModal('Add Task', content, () => {
+                const endDate = document.getElementById('task-end').value;
+                const delayedTo = document.getElementById('task-delayed').value;
+
+                // Validate delayed date is after end date
+                if (delayedTo && delayedTo <= endDate) {
+                    alert('Delayed To date must be later than End Date');
+                    return;
+                }
+
                 const task = {
                     id: 'task-' + Date.now(),
                     name: document.getElementById('task-name').value,
                     startDate: document.getElementById('task-start').value,
-                    endDate: document.getElementById('task-end').value,
+                    endDate: endDate,
                     color: document.getElementById('task-color').value,
                     dependencies: []
                 };
+
+                if (delayedTo) {
+                    task.delayedTo = delayedTo;
+                }
 
                 row.tasks = row.tasks || [];
                 row.tasks.push(task);
@@ -2054,6 +2133,10 @@
                     </div>
                 </div>
                 <div class="form-group">
+                    <label>Delayed To (optional)</label>
+                    <input type="date" id="task-delayed" value="${task.delayedTo || ''}">
+                </div>
+                <div class="form-group">
                     <label>Color</label>
                     <input type="color" id="task-color" value="${task.color}">
                 </div>
@@ -2066,10 +2149,25 @@
             `;
 
             openModal('Edit Task', content, () => {
+                const endDate = document.getElementById('task-end').value;
+                const delayedTo = document.getElementById('task-delayed').value;
+
+                // Validate delayed date is after end date
+                if (delayedTo && delayedTo <= endDate) {
+                    alert('Delayed To date must be later than End Date');
+                    return;
+                }
+
                 task.name = document.getElementById('task-name').value;
                 task.startDate = document.getElementById('task-start').value;
-                task.endDate = document.getElementById('task-end').value;
+                task.endDate = endDate;
                 task.color = document.getElementById('task-color').value;
+
+                if (delayedTo) {
+                    task.delayedTo = delayedTo;
+                } else {
+                    delete task.delayedTo;
+                }
 
                 const select = document.getElementById('task-dependencies');
                 task.dependencies = Array.from(select.selectedOptions).map(opt => opt.value);
