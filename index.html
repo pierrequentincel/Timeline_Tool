@@ -1,0 +1,2175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Timeline Tool</title>
+    <link rel="icon" type="image/png" href="../ENO_Tool/pictures/ATOM_logo_crop.png">
+    <style>
+        :root {
+            --cel-red: #CB333B;
+            --cel-blue: #385D7F;
+            --cel-dark-blue: #2c4a5f;
+            --cel-orange: #FE5000;
+            --cel-green: #30B700;
+            --cel-yellow: #FFD100;
+            --bg-light: #F5F7FA;
+            --text-dark: #2D3748;
+            --border-color: #e2e8f0;
+            --row-height: 40px;
+            --section-label-width: 200px;
+            --week-width: 60px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: white;
+            padding: 15px 20px;
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .title-input {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--cel-red);
+            border: none;
+            background: transparent;
+            outline: none;
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .title-input:hover, .title-input:focus {
+            background: var(--bg-light);
+            border-radius: 4px;
+            padding: 5px 10px;
+            margin: -5px -10px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--cel-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--cel-dark-blue);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: var(--text-dark);
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e1;
+        }
+
+        .btn-danger {
+            background: var(--cel-red);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #a82830;
+        }
+
+        .btn-toggle {
+            background: #e2e8f0;
+            color: var(--text-dark);
+        }
+
+        .btn-toggle.active {
+            background: var(--cel-blue);
+            color: white;
+        }
+
+        /* Main Container */
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 70px);
+            overflow: hidden;
+        }
+
+        /* Unified scroll container */
+        .scroll-container {
+            display: flex;
+            flex: 1;
+            overflow: auto;
+        }
+
+        /* Section Labels Panel - now part of scroll container */
+        .section-labels {
+            width: var(--section-label-width);
+            flex-shrink: 0;
+            background: white;
+            border-right: 2px solid var(--border-color);
+            position: sticky;
+            left: 0;
+            z-index: 20;
+        }
+
+        .section-label-header {
+            height: 60px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-light);
+            position: sticky;
+            top: 0;
+            z-index: 25;
+        }
+
+        .section-block {
+            border-bottom: 2px solid var(--border-color);
+            background: white;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: stretch;
+        }
+
+        .section-color-bar {
+            width: 8px;
+            flex-shrink: 0;
+        }
+
+        .section-info {
+            flex: 1;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .section-name {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 4px;
+        }
+
+        .section-description {
+            font-size: 10px;
+            color: #64748b;
+            line-height: 1.3;
+        }
+
+        .row-label {
+            height: var(--row-height);
+            padding: 0 10px 0 18px;
+            display: flex;
+            align-items: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-dark);
+            border-top: 1px solid var(--border-color);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .row-label.governance {
+            font-size: 10px;
+            text-transform: none;
+            font-weight: 500;
+        }
+
+        /* Add button row - same height as grid row */
+        .add-row-btn-container {
+            height: var(--row-height);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Timeline Grid Panel */
+        .timeline-grid {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .grid-container {
+            min-width: fit-content;
+            position: relative;
+        }
+
+        /* Month/Week Headers */
+        .timeline-header {
+            display: flex;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: white;
+        }
+
+        .month-headers {
+            display: flex;
+            height: 30px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .month-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-dark);
+            background: var(--bg-light);
+            border-right: 1px solid var(--border-color);
+        }
+
+        .week-headers {
+            display: flex;
+            height: 30px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .week-header {
+            width: var(--week-width);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: #64748b;
+            border-right: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        /* Grid Body */
+        .grid-body {
+            position: relative;
+        }
+
+        .grid-row {
+            height: var(--row-height);
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .grid-row.section-start {
+            border-top: 2px solid var(--border-color);
+        }
+
+        .grid-row.add-btn-row {
+            background: rgba(0,0,0,0.02);
+        }
+
+        .grid-cell {
+            width: var(--week-width);
+            height: 100%;
+            border-right: 1px solid #f1f5f9;
+            flex-shrink: 0;
+        }
+
+        .grid-cell.month-start {
+            border-left: 1px solid var(--border-color);
+        }
+
+        /* Today Marker */
+        .today-marker {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--cel-red);
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .today-marker::before {
+            content: 'TODAY';
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 9px;
+            font-weight: 700;
+            color: var(--cel-red);
+            background: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            white-space: nowrap;
+        }
+
+        .today-marker.hidden {
+            display: none;
+        }
+
+        /* Task Bars */
+        .task-bar {
+            position: absolute;
+            height: 24px;
+            top: 8px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            font-size: 10px;
+            font-weight: 600;
+            color: white;
+            cursor: move;
+            z-index: 2;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            min-width: 20px;
+        }
+
+        .task-bar:hover {
+            filter: brightness(1.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .task-bar .resize-handle {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 8px;
+            cursor: ew-resize;
+        }
+
+        .task-bar .resize-handle.left {
+            left: 0;
+        }
+
+        .task-bar .resize-handle.right {
+            right: 0;
+        }
+
+        .task-bar.small {
+            height: 16px;
+            top: 12px;
+            border-radius: 2px;
+            padding: 0 4px;
+            font-size: 9px;
+        }
+
+        /* Milestones */
+        .milestone {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 12px;
+            transform: rotate(45deg) translateX(-50%);
+            z-index: 3;
+            cursor: pointer;
+        }
+
+        .milestone:hover {
+            filter: brightness(1.2);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .milestone-label {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 8px;
+            font-weight: 600;
+            color: var(--text-dark);
+            white-space: nowrap;
+            max-width: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+            z-index: 3;
+        }
+
+        /* Dependency Arrows */
+        .dependencies-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .dependency-arrow {
+            fill: none;
+            stroke: #64748b;
+            stroke-width: 2;
+            marker-end: url(#arrowhead);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.hidden {
+            display: none;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            min-width: 400px;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal h3 {
+            margin-bottom: 20px;
+            color: var(--cel-blue);
+            font-size: 18px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-dark);
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--cel-blue);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        /* Context Menu */
+        .context-menu {
+            position: fixed;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 1001;
+            min-width: 150px;
+            overflow: hidden;
+        }
+
+        .context-menu.hidden {
+            display: none;
+        }
+
+        .context-menu-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .context-menu-item:hover {
+            background: var(--bg-light);
+        }
+
+        .context-menu-item.danger {
+            color: var(--cel-red);
+        }
+
+        /* Add buttons in sections */
+        .add-row-btn {
+            padding: 6px 12px;
+            background: transparent;
+            border: 1px dashed var(--border-color);
+            color: #64748b;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 4px;
+            margin-top: 8px;
+        }
+
+        .add-row-btn:hover {
+            background: var(--bg-light);
+            border-color: var(--cel-blue);
+            color: var(--cel-blue);
+        }
+
+        /* Empty state */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: #64748b;
+        }
+
+        .empty-state p {
+            margin-bottom: 20px;
+        }
+
+        /* File input hidden */
+        .file-input {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <input type="text" class="title-input" id="timeline-title" value="Project Timeline" placeholder="Enter timeline title...">
+        <div class="toolbar">
+            <button class="btn btn-primary" onclick="addSection('phase')">+ Phase</button>
+            <button class="btn btn-primary" onclick="addSection('governance')">+ Governance</button>
+            <button class="btn btn-secondary" onclick="addMonth()">+ Month</button>
+            <button class="btn btn-secondary" onclick="removeMonth()">- Month</button>
+            <button class="btn btn-toggle" id="today-toggle" onclick="toggleTodayMarker()">Today</button>
+            <button class="btn btn-toggle" id="presentation-toggle" onclick="togglePresentationMode()">Presentation</button>
+            <button class="btn btn-secondary" onclick="exportTimeline()">Export</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">Import</button>
+            <input type="file" id="import-file" class="file-input" accept=".json" onchange="importTimeline(event)">
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="scroll-container" id="scroll-container">
+            <div class="section-labels" id="section-labels">
+                <div class="section-label-header">Sections</div>
+            </div>
+            <div class="timeline-grid" id="timeline-grid">
+                <div class="grid-container" id="grid-container">
+                    <!-- SVG for dependency arrows -->
+                    <svg class="dependencies-svg" id="dependencies-svg">
+                        <defs>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                    <div class="timeline-header" id="timeline-header">
+                        <div class="month-headers" id="month-headers"></div>
+                    </div>
+                    <div class="week-headers" id="week-headers"></div>
+                    <div class="grid-body" id="grid-body"></div>
+                    <div class="today-marker" id="today-marker"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay hidden" id="modal-overlay" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <h3 id="modal-title">Add Item</h3>
+            <div id="modal-content"></div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" id="modal-save">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div class="context-menu hidden" id="context-menu"></div>
+
+    <script>
+        // ===========================================
+        // DATA MODEL
+        // ===========================================
+        let timelineData = {
+            version: "1.0",
+            title: "ENO Project Timeline - Updated",
+            startMonth: "2025-11",
+            endMonth: "2026-03",
+            showTodayMarker: true,
+            presentationMode: false,
+            sections: [
+                {
+                    id: "section-phase1",
+                    type: "phase",
+                    name: "PHASE 1",
+                    description: "Establish comprehensive baseline of demand, logistics, inventory and cost-to-serve",
+                    color: "#CB333B",
+                    rows: [
+                        {
+                            id: "row-data-collection",
+                            name: "DATA COLLECTION & VALIDATION",
+                            tasks: [
+                                { id: "task-dc", name: "DATA COLLECTION & VALIDATION", startDate: "2025-11-10", endDate: "2025-12-08", color: "#CB333B", dependencies: [] }
+                            ],
+                            milestones: []
+                        },
+                        {
+                            id: "row-current-baseline",
+                            name: "CURRENT BASELINE",
+                            tasks: [
+                                { id: "task-cb", name: "CURRENT BASELINE", startDate: "2025-11-17", endDate: "2025-12-22", color: "#CB333B", dependencies: [] }
+                            ],
+                            milestones: []
+                        }
+                    ]
+                },
+                {
+                    id: "section-phase2",
+                    type: "phase",
+                    name: "PHASE 2",
+                    description: "Project 5-year demand evolution across channels, products, and geographies",
+                    color: "#CB333B",
+                    rows: [
+                        {
+                            id: "row-future-baseline",
+                            name: "FUTURE BASELINE",
+                            tasks: [
+                                { id: "task-fb", name: "FUTURE BASELINE", startDate: "2025-12-15", endDate: "2026-01-26", color: "#E8A87C", dependencies: [] }
+                            ],
+                            milestones: []
+                        }
+                    ]
+                },
+                {
+                    id: "section-phase3",
+                    type: "phase",
+                    name: "PHASE 3",
+                    description: "Build optimization model with ±3% accuracy to baseline",
+                    color: "#CB333B",
+                    rows: [
+                        {
+                            id: "row-modelling",
+                            name: "MODELLING & CALIBRATION",
+                            tasks: [
+                                { id: "task-mc", name: "MODELLING & CALIBRATION", startDate: "2025-11-24", endDate: "2026-01-12", color: "#CB333B", dependencies: [] }
+                            ],
+                            milestones: []
+                        }
+                    ]
+                },
+                {
+                    id: "section-phase4",
+                    type: "phase",
+                    name: "PHASE 4",
+                    description: "Define 20-30 scenarios exploring network alternatives",
+                    color: "#CB333B",
+                    rows: [
+                        {
+                            id: "row-scenario-def",
+                            name: "SCENARIO DEFINITION",
+                            tasks: [
+                                { id: "task-sd", name: "SCENARIO DEFINITION", startDate: "2025-12-01", endDate: "2026-01-05", color: "#CB333B", dependencies: [] }
+                            ],
+                            milestones: []
+                        }
+                    ]
+                },
+                {
+                    id: "section-phase5",
+                    type: "phase",
+                    name: "PHASE 5",
+                    description: "Execute experiments to converge on optimal network design",
+                    color: "#CB333B",
+                    rows: [
+                        {
+                            id: "row-model-design",
+                            name: "MODEL DESIGN & CALIBRATION",
+                            tasks: [
+                                { id: "task-mdc", name: "MODEL DESIGN & CALIBRATION", startDate: "2025-12-22", endDate: "2026-02-02", color: "#E8A87C", dependencies: [] }
+                            ],
+                            milestones: []
+                        },
+                        {
+                            id: "row-experiments",
+                            name: "SCENARIO EXPERIMENTS & FUTURE NETWORK DESIGN",
+                            tasks: [
+                                { id: "task-se", name: "SCENARIO EXPERIMENTS & FUTURE NETWORK DESIGN", startDate: "2026-01-05", endDate: "2026-02-16", color: "#E8A87C", dependencies: [] }
+                            ],
+                            milestones: []
+                        },
+                        {
+                            id: "row-manufacturing",
+                            name: "MANUFACTURING",
+                            tasks: [
+                                { id: "task-mfg", name: "MANUFACTURING", startDate: "2026-01-19", endDate: "2026-02-02", color: "#D4D4D4", dependencies: [] }
+                            ],
+                            milestones: []
+                        },
+                        {
+                            id: "row-distribution",
+                            name: "DISTRIBUTION",
+                            tasks: [
+                                { id: "task-dist", name: "DISTRIBUTION", startDate: "2026-02-02", endDate: "2026-02-16", color: "#D4D4D4", dependencies: [] }
+                            ],
+                            milestones: []
+                        }
+                    ]
+                },
+                {
+                    id: "section-phase6",
+                    type: "phase",
+                    name: "PHASE 6",
+                    description: "Convert optimal design into actionable implementation plan & handover",
+                    color: "#CB333B",
+                    rows: [
+                        {
+                            id: "row-transformation",
+                            name: "TRANSFORMATION ROADMAP",
+                            tasks: [
+                                { id: "task-tr", name: "TRANSFORMATION ROADMAP", startDate: "2026-02-16", endDate: "2026-03-09", color: "#CB333B", dependencies: [] }
+                            ],
+                            milestones: []
+                        },
+                        {
+                            id: "row-handover",
+                            name: "HAND OVER",
+                            tasks: [
+                                { id: "task-ho", name: "HAND OVER", startDate: "2026-03-09", endDate: "2026-03-23", color: "#CB333B", dependencies: [] }
+                            ],
+                            milestones: []
+                        }
+                    ]
+                },
+                {
+                    id: "section-governance",
+                    type: "governance",
+                    name: "PROJECT GOVERNANCE",
+                    description: "",
+                    color: "#CB333B",
+                    governanceRows: [
+                        {
+                            id: "gov-row-steerco",
+                            name: "STEERCO",
+                            tasks: [
+                                { id: "task-baselines", name: "2025 & 2030 BASELINES", startDate: "2026-01-05", endDate: "2026-01-12", color: "#CB333B", dependencies: [] }
+                            ],
+                            milestones: [
+                                { id: "ms-kickoff", name: "KICK-OFF", date: "2025-11-17", color: "#000000" },
+                                { id: "ms-steerco1", name: "STEERCO 1: CURRENT & FUTURE BASELINE PRESENTATION", date: "2025-12-08", color: "#000000" },
+                                { id: "ms-scenario-workshop", name: "SCENARIO DEFINITION WORKSHOP", date: "2025-12-15", color: "#CB333B" },
+                                { id: "ms-steerco2", name: "STEERCO 2: FUTURE NETWORK SELECTION", date: "2026-02-09", color: "#000000" },
+                                { id: "ms-steerco4", name: "STEERCO 4: FINAL DELIVERY", date: "2026-03-16", color: "#000000" }
+                            ]
+                        },
+                        {
+                            id: "gov-row-cel",
+                            name: "CEL @ LISBON",
+                            tasks: [],
+                            milestones: [
+                                { id: "ms-cel", name: "", date: "2025-11-17", color: "#000000" }
+                            ]
+                        },
+                        {
+                            id: "gov-row-pmo",
+                            name: "PMO MEETINGS",
+                            tasks: [],
+                            milestones: [],
+                            recurringMilestones: {
+                                frequency: "biweekly",
+                                startDate: "2025-11-24",
+                                color: "#999999"
+                            }
+                        }
+                    ]
+                }
+            ]
+        };
+
+        let weekDates = [];
+        let isDragging = false;
+        let dragTarget = null;
+        let dragType = null;
+        let dragStartX = 0;
+        let dragOriginalLeft = 0;
+        let dragOriginalWidth = 0;
+        let addingDependency = false;
+        let dependencySource = null;
+
+        // ===========================================
+        // INITIALIZATION
+        // ===========================================
+        function init() {
+            document.getElementById('timeline-title').value = timelineData.title;
+            generateWeekDates();
+            render();
+            setupEventListeners();
+        }
+
+        function setupEventListeners() {
+            document.getElementById('timeline-title').addEventListener('input', (e) => {
+                timelineData.title = e.target.value;
+            });
+
+            document.addEventListener('click', () => {
+                document.getElementById('context-menu').classList.add('hidden');
+            });
+
+            document.addEventListener('mousemove', handleDrag);
+            document.addEventListener('mouseup', handleDragEnd);
+        }
+
+        // ===========================================
+        // DATE UTILITIES
+        // ===========================================
+        function generateWeekDates() {
+            weekDates = [];
+            const [startYear, startMonth] = timelineData.startMonth.split('-').map(Number);
+            const [endYear, endMonth] = timelineData.endMonth.split('-').map(Number);
+
+            let currentDate = new Date(startYear, startMonth - 1, 1);
+            // Adjust to Monday
+            const day = currentDate.getDay();
+            const diff = day === 0 ? -6 : 1 - day;
+            currentDate.setDate(currentDate.getDate() + diff);
+
+            const endDate = new Date(endYear, endMonth, 0);
+
+            while (currentDate <= endDate) {
+                weekDates.push(new Date(currentDate));
+                currentDate.setDate(currentDate.getDate() + 7);
+            }
+        }
+
+        function getWeekIndex(dateStr) {
+            const date = new Date(dateStr);
+            for (let i = 0; i < weekDates.length; i++) {
+                const weekStart = weekDates[i];
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekEnd.getDate() + 7);
+                if (date >= weekStart && date < weekEnd) {
+                    return i;
+                }
+            }
+            // If before first week
+            if (date < weekDates[0]) return 0;
+            // If after last week
+            return weekDates.length - 1;
+        }
+
+        function getPositionFromDate(dateStr) {
+            const date = new Date(dateStr);
+            const weekWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--week-width'));
+
+            for (let i = 0; i < weekDates.length; i++) {
+                const weekStart = weekDates[i];
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekEnd.getDate() + 7);
+
+                if (date >= weekStart && date < weekEnd) {
+                    const dayOffset = (date - weekStart) / (1000 * 60 * 60 * 24);
+                    return i * weekWidth + (dayOffset / 7) * weekWidth;
+                }
+            }
+
+            if (date < weekDates[0]) {
+                const dayOffset = (date - weekDates[0]) / (1000 * 60 * 60 * 24);
+                return (dayOffset / 7) * weekWidth;
+            }
+
+            const lastWeekStart = weekDates[weekDates.length - 1];
+            const dayOffset = (date - lastWeekStart) / (1000 * 60 * 60 * 24);
+            return (weekDates.length - 1) * weekWidth + (dayOffset / 7) * weekWidth;
+        }
+
+        function getDateFromPosition(posX) {
+            const weekWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--week-width'));
+            const weekIndex = Math.floor(posX / weekWidth);
+            const dayOffset = ((posX % weekWidth) / weekWidth) * 7;
+
+            if (weekIndex < 0) return formatDate(weekDates[0]);
+            if (weekIndex >= weekDates.length) {
+                const lastWeek = weekDates[weekDates.length - 1];
+                const newDate = new Date(lastWeek);
+                newDate.setDate(newDate.getDate() + dayOffset);
+                return formatDate(newDate);
+            }
+
+            const weekStart = new Date(weekDates[weekIndex]);
+            weekStart.setDate(weekStart.getDate() + Math.round(dayOffset));
+            return formatDate(weekStart);
+        }
+
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function formatDateDisplay(dateStr) {
+            const date = new Date(dateStr);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            return `${day}/${month}`;
+        }
+
+        function getMonthName(monthNum) {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return months[monthNum];
+        }
+
+        // ===========================================
+        // RENDERING
+        // ===========================================
+        function render() {
+            renderHeaders();
+            renderSectionLabels();
+            renderGridBody();
+            renderTodayMarker();
+            renderDependencies();
+        }
+
+        function renderHeaders() {
+            const monthHeaders = document.getElementById('month-headers');
+            const weekHeaders = document.getElementById('week-headers');
+            const weekWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--week-width'));
+
+            monthHeaders.innerHTML = '';
+            weekHeaders.innerHTML = '';
+
+            // Group weeks by month
+            const monthGroups = {};
+            weekDates.forEach((date, index) => {
+                const key = `${date.getFullYear()}-${date.getMonth()}`;
+                if (!monthGroups[key]) {
+                    monthGroups[key] = { year: date.getFullYear(), month: date.getMonth(), count: 0 };
+                }
+                monthGroups[key].count++;
+            });
+
+            // Render month headers
+            Object.values(monthGroups).forEach(group => {
+                const header = document.createElement('div');
+                header.className = 'month-header';
+                header.style.width = `${group.count * weekWidth}px`;
+                header.textContent = `${getMonthName(group.month)} ${String(group.year).slice(2)}`;
+                monthHeaders.appendChild(header);
+            });
+
+            // Render week headers
+            weekDates.forEach((date, index) => {
+                const header = document.createElement('div');
+                header.className = 'week-header';
+                header.textContent = formatDateDisplay(formatDate(date));
+                if (date.getDate() <= 7) {
+                    header.classList.add('month-start');
+                }
+                weekHeaders.appendChild(header);
+            });
+        }
+
+        function renderSectionLabels() {
+            const container = document.getElementById('section-labels');
+            container.innerHTML = '<div class="section-label-header">Sections</div>';
+
+            if (timelineData.sections.length === 0) {
+                return;
+            }
+
+            const isEditMode = !timelineData.presentationMode;
+
+            timelineData.sections.forEach((section, sectionIndex) => {
+                const sectionBlock = document.createElement('div');
+                sectionBlock.className = 'section-block';
+                sectionBlock.dataset.sectionId = section.id;
+
+                // Calculate section height based on number of rows
+                const rows = section.type === 'governance' ? section.governanceRows : section.rows;
+                const rowCount = rows ? rows.length : 0;
+                const rowHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--row-height'));
+
+                // Calculate total height including add button row if in edit mode
+                const addButtonRows = isEditMode ? 1 : 0;
+                const totalRows = rowCount + addButtonRows;
+
+                const sectionHeader = document.createElement('div');
+                sectionHeader.className = 'section-header';
+                // Set height to span all rows in grid (including add button row)
+                if (totalRows > 0) {
+                    sectionHeader.style.minHeight = `${totalRows * rowHeight}px`;
+                }
+                sectionHeader.innerHTML = `
+                    <div class="section-color-bar" style="background-color: ${section.color}"></div>
+                    <div class="section-info">
+                        <div class="section-name">${section.name}</div>
+                        ${section.description ? `<div class="section-description">${section.description}</div>` : ''}
+                        ${isEditMode ? `<button class="add-row-btn" style="margin-top: auto;" onclick="addTask('${section.id}', '${rows && rows.length > 0 ? rows[0].id : ''}')">+ Add Task</button>` : ''}
+                    </div>
+                `;
+                if (isEditMode) {
+                    sectionHeader.addEventListener('contextmenu', (e) => {
+                        if (!e.target.classList.contains('add-row-btn')) {
+                            showContextMenu(e, 'section', section.id);
+                        }
+                    });
+                    sectionHeader.addEventListener('dblclick', (e) => {
+                        if (!e.target.classList.contains('add-row-btn')) {
+                            editSection(section.id);
+                        }
+                    });
+                }
+                sectionBlock.appendChild(sectionHeader);
+
+                container.appendChild(sectionBlock);
+            });
+        }
+
+        function renderGridBody() {
+            const gridBody = document.getElementById('grid-body');
+            const weekWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--week-width'));
+            gridBody.innerHTML = '';
+
+            const isEditMode = !timelineData.presentationMode;
+
+            let rowIndex = 0;
+            timelineData.sections.forEach((section, sectionIndex) => {
+                const rows = section.type === 'governance' ? section.governanceRows : section.rows;
+                if (!rows) return;
+
+                rows.forEach((row, rIdx) => {
+                    const gridRow = document.createElement('div');
+                    gridRow.className = 'grid-row';
+                    if (rIdx === 0) gridRow.classList.add('section-start');
+                    gridRow.dataset.sectionId = section.id;
+                    gridRow.dataset.rowId = row.id;
+                    gridRow.dataset.rowIndex = rowIndex;
+
+                    // Add cells for visual grid
+                    weekDates.forEach((date, weekIndex) => {
+                        const cell = document.createElement('div');
+                        cell.className = 'grid-cell';
+                        if (date.getDate() <= 7) cell.classList.add('month-start');
+                        gridRow.appendChild(cell);
+                    });
+
+                    // Double-click to add task
+                    gridRow.addEventListener('dblclick', (e) => {
+                        if (e.target.classList.contains('grid-cell') || e.target.classList.contains('grid-row')) {
+                            const rect = gridRow.getBoundingClientRect();
+                            const gridRect = document.getElementById('grid-body').getBoundingClientRect();
+                            const x = e.clientX - gridRect.left + document.getElementById('scroll-container').scrollLeft - 200;
+                            addTask(section.id, row.id, getDateFromPosition(x));
+                        }
+                    });
+
+                    gridBody.appendChild(gridRow);
+
+                    // Render tasks
+                    if (row.tasks) {
+                        row.tasks.forEach(task => {
+                            renderTask(task, gridRow, section, row);
+                        });
+                    }
+
+                    // Render milestones
+                    if (row.milestones) {
+                        row.milestones.forEach(milestone => {
+                            renderMilestone(milestone, gridRow, section, row);
+                        });
+                    }
+
+                    // Render recurring milestones for governance
+                    if (row.recurringMilestones && section.type === 'governance') {
+                        renderRecurringMilestones(row.recurringMilestones, gridRow, section, row);
+                    }
+
+                    rowIndex++;
+                });
+
+                // Add empty row for the "+ Add Task" button area (only in edit mode)
+                if (isEditMode) {
+                    const addBtnRow = document.createElement('div');
+                    addBtnRow.className = 'grid-row add-btn-row';
+                    addBtnRow.dataset.sectionId = section.id;
+
+                    // Add cells for visual grid
+                    weekDates.forEach((date, weekIndex) => {
+                        const cell = document.createElement('div');
+                        cell.className = 'grid-cell';
+                        if (date.getDate() <= 7) cell.classList.add('month-start');
+                        addBtnRow.appendChild(cell);
+                    });
+
+                    gridBody.appendChild(addBtnRow);
+                    rowIndex++;
+                }
+            });
+
+            // Update grid container width
+            document.getElementById('grid-container').style.width = `${weekDates.length * weekWidth}px`;
+        }
+
+        function renderTask(task, gridRow, section, row) {
+            const weekWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--week-width'));
+            const left = getPositionFromDate(task.startDate);
+            const right = getPositionFromDate(task.endDate);
+            const width = Math.max(right - left, 20);
+
+            const taskEl = document.createElement('div');
+            taskEl.className = `task-bar ${section.type === 'governance' ? 'small' : ''}`;
+            taskEl.style.left = `${left}px`;
+            taskEl.style.width = `${width}px`;
+            taskEl.style.backgroundColor = task.color || section.color;
+            taskEl.textContent = task.name || '';
+            taskEl.dataset.taskId = task.id;
+            taskEl.dataset.sectionId = section.id;
+            taskEl.dataset.rowId = row.id;
+
+            // Resize handles
+            const leftHandle = document.createElement('div');
+            leftHandle.className = 'resize-handle left';
+            leftHandle.addEventListener('mousedown', (e) => startDrag(e, task, 'resize-left'));
+
+            const rightHandle = document.createElement('div');
+            rightHandle.className = 'resize-handle right';
+            rightHandle.addEventListener('mousedown', (e) => startDrag(e, task, 'resize-right'));
+
+            taskEl.appendChild(leftHandle);
+            taskEl.appendChild(rightHandle);
+
+            // Drag to move
+            taskEl.addEventListener('mousedown', (e) => {
+                if (!e.target.classList.contains('resize-handle')) {
+                    startDrag(e, task, 'move');
+                }
+            });
+
+            // Context menu
+            taskEl.addEventListener('contextmenu', (e) => {
+                e.stopPropagation();
+                showContextMenu(e, 'task', section.id, row.id, task.id);
+            });
+
+            // Double-click to edit
+            taskEl.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                editTask(section.id, row.id, task.id);
+            });
+
+            gridRow.appendChild(taskEl);
+        }
+
+        function renderMilestone(milestone, gridRow, section, row) {
+            const left = getPositionFromDate(milestone.date);
+            const isEditMode = !timelineData.presentationMode;
+
+            const milestoneEl = document.createElement('div');
+            milestoneEl.className = 'milestone';
+            milestoneEl.style.left = `${left}px`;
+            milestoneEl.style.backgroundColor = milestone.color || '#000000';
+            milestoneEl.dataset.milestoneId = milestone.id;
+            milestoneEl.dataset.sectionId = section.id;
+            milestoneEl.dataset.rowId = row.id;
+
+            if (isEditMode) {
+                milestoneEl.addEventListener('contextmenu', (e) => {
+                    e.stopPropagation();
+                    showContextMenu(e, 'milestone', section.id, row.id, null, milestone.id);
+                });
+
+                milestoneEl.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    editMilestone(section.id, row.id, milestone.id);
+                });
+
+                // Add drag support for milestones
+                milestoneEl.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    startMilestoneDrag(e, milestone, section.id, row.id);
+                });
+            }
+
+            gridRow.appendChild(milestoneEl);
+
+            // Add label if exists
+            if (milestone.name) {
+                const labelEl = document.createElement('div');
+                labelEl.className = 'milestone-label';
+                labelEl.style.left = `${left + 8}px`;
+                labelEl.textContent = milestone.name;
+                labelEl.title = milestone.name;
+                gridRow.appendChild(labelEl);
+            }
+        }
+
+        function renderRecurringMilestones(config, gridRow, section, row) {
+            const startDate = new Date(config.startDate);
+            const [endYear, endMonth] = timelineData.endMonth.split('-').map(Number);
+            const endDate = new Date(endYear, endMonth, 0);
+
+            let currentDate = new Date(startDate);
+            let interval = 14; // biweekly default
+            if (config.frequency === 'weekly') interval = 7;
+            if (config.frequency === 'monthly') interval = 30;
+
+            while (currentDate <= endDate) {
+                const left = getPositionFromDate(formatDate(currentDate));
+
+                const milestoneEl = document.createElement('div');
+                milestoneEl.className = 'milestone';
+                milestoneEl.style.left = `${left}px`;
+                milestoneEl.style.backgroundColor = config.color || '#999999';
+                milestoneEl.style.width = '12px';
+                milestoneEl.style.height = '12px';
+                milestoneEl.style.top = '14px';
+
+                gridRow.appendChild(milestoneEl);
+
+                currentDate.setDate(currentDate.getDate() + interval);
+            }
+        }
+
+        function renderTodayMarker() {
+            const todayMarker = document.getElementById('today-marker');
+            const today = new Date();
+            const todayStr = formatDate(today);
+            const left = getPositionFromDate(todayStr);
+
+            todayMarker.style.left = `${left}px`;
+
+            if (timelineData.showTodayMarker) {
+                todayMarker.classList.remove('hidden');
+                document.getElementById('today-toggle').classList.add('active');
+            } else {
+                todayMarker.classList.add('hidden');
+                document.getElementById('today-toggle').classList.remove('active');
+            }
+        }
+
+        function renderDependencies() {
+            const svg = document.getElementById('dependencies-svg');
+            // Clear existing paths (keep defs)
+            const paths = svg.querySelectorAll('path');
+            paths.forEach(p => p.remove());
+
+            timelineData.sections.forEach(section => {
+                const rows = section.type === 'governance' ? section.governanceRows : section.rows;
+                if (!rows) return;
+
+                rows.forEach(row => {
+                    if (!row.tasks) return;
+                    row.tasks.forEach(task => {
+                        if (task.dependencies && task.dependencies.length > 0) {
+                            task.dependencies.forEach(depId => {
+                                drawDependencyArrow(depId, task.id);
+                            });
+                        }
+                    });
+                });
+            });
+        }
+
+        function drawDependencyArrow(fromTaskId, toTaskId) {
+            const fromEl = document.querySelector(`[data-task-id="${fromTaskId}"]`);
+            const toEl = document.querySelector(`[data-task-id="${toTaskId}"]`);
+
+            if (!fromEl || !toEl) return;
+
+            const gridBody = document.getElementById('grid-body');
+            const gridRect = gridBody.getBoundingClientRect();
+
+            const fromRect = fromEl.getBoundingClientRect();
+            const toRect = toEl.getBoundingClientRect();
+
+            const scrollLeft = document.getElementById('timeline-grid').scrollLeft;
+            const scrollTop = document.getElementById('timeline-grid').scrollTop;
+
+            const startX = fromRect.right - gridRect.left + scrollLeft;
+            const startY = fromRect.top + fromRect.height / 2 - gridRect.top + scrollTop + 60;
+            const endX = toRect.left - gridRect.left + scrollLeft;
+            const endY = toRect.top + toRect.height / 2 - gridRect.top + scrollTop + 60;
+
+            const midX = (startX + endX) / 2;
+
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`);
+            path.setAttribute('class', 'dependency-arrow');
+
+            document.getElementById('dependencies-svg').appendChild(path);
+        }
+
+        // ===========================================
+        // DRAG & RESIZE
+        // ===========================================
+        let isDraggingMilestone = false;
+        let dragMilestoneTarget = null;
+        let dragMilestoneSectionId = null;
+        let dragMilestoneRowId = null;
+
+        function startDrag(e, task, type) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            isDragging = true;
+            dragTarget = task;
+            dragType = type;
+            dragStartX = e.clientX;
+
+            const taskEl = document.querySelector(`[data-task-id="${task.id}"]`);
+            dragOriginalLeft = parseFloat(taskEl.style.left);
+            dragOriginalWidth = parseFloat(taskEl.style.width);
+
+            document.body.style.cursor = type === 'move' ? 'move' : 'ew-resize';
+        }
+
+        function startMilestoneDrag(e, milestone, sectionId, rowId) {
+            isDraggingMilestone = true;
+            dragMilestoneTarget = milestone;
+            dragMilestoneSectionId = sectionId;
+            dragMilestoneRowId = rowId;
+            dragStartX = e.clientX;
+
+            const milestoneEl = document.querySelector(`[data-milestone-id="${milestone.id}"]`);
+            dragOriginalLeft = parseFloat(milestoneEl.style.left);
+
+            document.body.style.cursor = 'move';
+        }
+
+        function handleDrag(e) {
+            // Handle task drag
+            if (isDragging && dragTarget) {
+                const deltaX = e.clientX - dragStartX;
+                const taskEl = document.querySelector(`[data-task-id="${dragTarget.id}"]`);
+
+                if (dragType === 'move') {
+                    const newLeft = Math.max(0, dragOriginalLeft + deltaX);
+                    taskEl.style.left = `${newLeft}px`;
+                } else if (dragType === 'resize-left') {
+                    const newLeft = Math.max(0, dragOriginalLeft + deltaX);
+                    const newWidth = Math.max(20, dragOriginalWidth - deltaX);
+                    taskEl.style.left = `${newLeft}px`;
+                    taskEl.style.width = `${newWidth}px`;
+                } else if (dragType === 'resize-right') {
+                    const newWidth = Math.max(20, dragOriginalWidth + deltaX);
+                    taskEl.style.width = `${newWidth}px`;
+                }
+            }
+
+            // Handle milestone drag
+            if (isDraggingMilestone && dragMilestoneTarget) {
+                const deltaX = e.clientX - dragStartX;
+                const milestoneEl = document.querySelector(`[data-milestone-id="${dragMilestoneTarget.id}"]`);
+                if (milestoneEl) {
+                    const newLeft = Math.max(0, dragOriginalLeft + deltaX);
+                    milestoneEl.style.left = `${newLeft}px`;
+
+                    // Also move the label if exists
+                    const labelEl = milestoneEl.parentElement.querySelector(`.milestone-label[style*="left: ${dragOriginalLeft + 8}px"]`);
+                    if (labelEl) {
+                        labelEl.style.left = `${newLeft + 8}px`;
+                    }
+                }
+            }
+        }
+
+        function handleDragEnd(e) {
+            // Handle task drag end
+            if (isDragging && dragTarget) {
+                const taskEl = document.querySelector(`[data-task-id="${dragTarget.id}"]`);
+                const newLeft = parseFloat(taskEl.style.left);
+                const newWidth = parseFloat(taskEl.style.width);
+
+                // Update task dates
+                dragTarget.startDate = getDateFromPosition(newLeft);
+                dragTarget.endDate = getDateFromPosition(newLeft + newWidth);
+
+                isDragging = false;
+                dragTarget = null;
+                dragType = null;
+                document.body.style.cursor = '';
+
+                render();
+            }
+
+            // Handle milestone drag end
+            if (isDraggingMilestone && dragMilestoneTarget) {
+                const milestoneEl = document.querySelector(`[data-milestone-id="${dragMilestoneTarget.id}"]`);
+                if (milestoneEl) {
+                    const newLeft = parseFloat(milestoneEl.style.left);
+
+                    // Update milestone date
+                    dragMilestoneTarget.date = getDateFromPosition(newLeft);
+                }
+
+                isDraggingMilestone = false;
+                dragMilestoneTarget = null;
+                dragMilestoneSectionId = null;
+                dragMilestoneRowId = null;
+                document.body.style.cursor = '';
+
+                render();
+            }
+        }
+
+        // ===========================================
+        // MODAL HELPERS
+        // ===========================================
+        let currentModalSave = null;
+
+        function openModal(title, content, onSave) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-content').innerHTML = content;
+            currentModalSave = onSave;
+            document.getElementById('modal-save').onclick = onSave;
+            document.getElementById('modal-overlay').classList.remove('hidden');
+
+            // Focus first input
+            setTimeout(() => {
+                const firstInput = document.querySelector('#modal-content input, #modal-content textarea, #modal-content select');
+                if (firstInput) firstInput.focus();
+            }, 50);
+        }
+
+        function closeModal(e) {
+            if (e && e.target !== e.currentTarget) return;
+            document.getElementById('modal-overlay').classList.add('hidden');
+            currentModalSave = null;
+        }
+
+        // Keyboard handler for modals
+        document.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('modal-overlay');
+            if (modal.classList.contains('hidden')) return;
+
+            if (e.key === 'Enter' && !e.shiftKey) {
+                // Don't trigger on textarea with shift
+                if (e.target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    if (currentModalSave) currentModalSave();
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                closeModal();
+            }
+        });
+
+        // ===========================================
+        // PRESENTATION MODE
+        // ===========================================
+        function togglePresentationMode() {
+            timelineData.presentationMode = !timelineData.presentationMode;
+            updatePresentationModeUI();
+            render();
+        }
+
+        function updatePresentationModeUI() {
+            const toggle = document.getElementById('presentation-toggle');
+            const toolbar = document.querySelector('.toolbar');
+            const header = document.querySelector('.header');
+
+            if (timelineData.presentationMode) {
+                toggle.classList.add('active');
+                // Hide edit buttons in presentation mode
+                document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => {
+                    if (!btn.id.includes('toggle')) {
+                        btn.style.display = 'none';
+                    }
+                });
+                header.style.padding = '10px 20px';
+            } else {
+                toggle.classList.remove('active');
+                document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => {
+                    btn.style.display = '';
+                });
+                header.style.padding = '';
+            }
+        }
+
+        // ===========================================
+        // SECTION MANAGEMENT
+        // ===========================================
+        function addSection(type) {
+            const id = 'section-' + Date.now();
+            let content = `
+                <div class="form-group">
+                    <label>Section Name</label>
+                    <input type="text" id="section-name" placeholder="e.g., PHASE 1">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="section-description" rows="2" placeholder="Brief description..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Color</label>
+                    <input type="color" id="section-color" value="#CB333B">
+                </div>
+            `;
+
+            openModal(`Add ${type === 'governance' ? 'Governance' : 'Phase'} Section`, content, () => {
+                const name = document.getElementById('section-name').value || 'New Section';
+                const description = document.getElementById('section-description').value;
+                const color = document.getElementById('section-color').value;
+
+                const section = {
+                    id,
+                    type,
+                    name,
+                    description,
+                    color
+                };
+
+                if (type === 'governance') {
+                    section.governanceRows = [];
+                } else {
+                    section.rows = [];
+                }
+
+                timelineData.sections.push(section);
+                closeModal();
+                render();
+            });
+        }
+
+        function editSection(sectionId) {
+            const section = timelineData.sections.find(s => s.id === sectionId);
+            if (!section) return;
+
+            const content = `
+                <div class="form-group">
+                    <label>Section Name</label>
+                    <input type="text" id="section-name" value="${section.name}">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="section-description" rows="2">${section.description || ''}</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Color</label>
+                    <input type="color" id="section-color" value="${section.color}">
+                </div>
+            `;
+
+            openModal('Edit Section', content, () => {
+                section.name = document.getElementById('section-name').value;
+                section.description = document.getElementById('section-description').value;
+                section.color = document.getElementById('section-color').value;
+                closeModal();
+                render();
+            });
+        }
+
+        function deleteSection(sectionId) {
+            timelineData.sections = timelineData.sections.filter(s => s.id !== sectionId);
+            render();
+        }
+
+        // ===========================================
+        // ROW MANAGEMENT
+        // ===========================================
+        function addRow(sectionId) {
+            const section = timelineData.sections.find(s => s.id === sectionId);
+            if (!section) return;
+
+            let content = `
+                <div class="form-group">
+                    <label>Row Name</label>
+                    <input type="text" id="row-name" placeholder="e.g., DATA COLLECTION">
+                </div>
+            `;
+
+            if (section.type === 'governance') {
+                content += `
+                    <div class="form-group">
+                        <label>Recurring Milestones</label>
+                        <select id="row-recurring">
+                            <option value="">None</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="biweekly">Bi-weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="recurring-start-group" style="display: none;">
+                        <label>Recurring Start Date</label>
+                        <input type="date" id="row-recurring-start">
+                    </div>
+                    <div class="form-group" id="recurring-color-group" style="display: none;">
+                        <label>Milestone Color</label>
+                        <input type="color" id="row-recurring-color" value="#999999">
+                    </div>
+                `;
+            }
+
+            openModal('Add Row', content, () => {
+                const name = document.getElementById('row-name').value || 'New Row';
+                const row = {
+                    id: 'row-' + Date.now(),
+                    name,
+                    tasks: [],
+                    milestones: []
+                };
+
+                if (section.type === 'governance') {
+                    const recurring = document.getElementById('row-recurring').value;
+                    if (recurring) {
+                        row.recurringMilestones = {
+                            frequency: recurring,
+                            startDate: document.getElementById('row-recurring-start').value || formatDate(new Date()),
+                            color: document.getElementById('row-recurring-color').value
+                        };
+                    }
+                }
+
+                if (section.type === 'governance') {
+                    section.governanceRows = section.governanceRows || [];
+                    section.governanceRows.push(row);
+                } else {
+                    section.rows = section.rows || [];
+                    section.rows.push(row);
+                }
+
+                closeModal();
+                render();
+            });
+
+            // Show/hide recurring options
+            setTimeout(() => {
+                const recurringSelect = document.getElementById('row-recurring');
+                if (recurringSelect) {
+                    recurringSelect.addEventListener('change', () => {
+                        const show = recurringSelect.value !== '';
+                        document.getElementById('recurring-start-group').style.display = show ? 'block' : 'none';
+                        document.getElementById('recurring-color-group').style.display = show ? 'block' : 'none';
+                    });
+                }
+            }, 100);
+        }
+
+        function editRow(sectionId, rowId) {
+            const section = timelineData.sections.find(s => s.id === sectionId);
+            if (!section) return;
+
+            const rows = section.type === 'governance' ? section.governanceRows : section.rows;
+            const row = rows.find(r => r.id === rowId);
+            if (!row) return;
+
+            let content = `
+                <div class="form-group">
+                    <label>Row Name</label>
+                    <input type="text" id="row-name" value="${row.name}">
+                </div>
+            `;
+
+            if (section.type === 'governance') {
+                const recurring = row.recurringMilestones;
+                content += `
+                    <div class="form-group">
+                        <label>Recurring Milestones</label>
+                        <select id="row-recurring">
+                            <option value="" ${!recurring ? 'selected' : ''}>None</option>
+                            <option value="weekly" ${recurring?.frequency === 'weekly' ? 'selected' : ''}>Weekly</option>
+                            <option value="biweekly" ${recurring?.frequency === 'biweekly' ? 'selected' : ''}>Bi-weekly</option>
+                            <option value="monthly" ${recurring?.frequency === 'monthly' ? 'selected' : ''}>Monthly</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="recurring-start-group" style="display: ${recurring ? 'block' : 'none'};">
+                        <label>Recurring Start Date</label>
+                        <input type="date" id="row-recurring-start" value="${recurring?.startDate || ''}">
+                    </div>
+                    <div class="form-group" id="recurring-color-group" style="display: ${recurring ? 'block' : 'none'};">
+                        <label>Milestone Color</label>
+                        <input type="color" id="row-recurring-color" value="${recurring?.color || '#999999'}">
+                    </div>
+                `;
+            }
+
+            openModal('Edit Row', content, () => {
+                row.name = document.getElementById('row-name').value;
+
+                if (section.type === 'governance') {
+                    const recurring = document.getElementById('row-recurring').value;
+                    if (recurring) {
+                        row.recurringMilestones = {
+                            frequency: recurring,
+                            startDate: document.getElementById('row-recurring-start').value || formatDate(new Date()),
+                            color: document.getElementById('row-recurring-color').value
+                        };
+                    } else {
+                        delete row.recurringMilestones;
+                    }
+                }
+
+                closeModal();
+                render();
+            });
+
+            // Show/hide recurring options
+            setTimeout(() => {
+                const recurringSelect = document.getElementById('row-recurring');
+                if (recurringSelect) {
+                    recurringSelect.addEventListener('change', () => {
+                        const show = recurringSelect.value !== '';
+                        document.getElementById('recurring-start-group').style.display = show ? 'block' : 'none';
+                        document.getElementById('recurring-color-group').style.display = show ? 'block' : 'none';
+                    });
+                }
+            }, 100);
+        }
+
+        function deleteRow(sectionId, rowId) {
+            const section = timelineData.sections.find(s => s.id === sectionId);
+            if (!section) return;
+
+            if (section.type === 'governance') {
+                section.governanceRows = section.governanceRows.filter(r => r.id !== rowId);
+            } else {
+                section.rows = section.rows.filter(r => r.id !== rowId);
+            }
+            render();
+        }
+
+        // ===========================================
+        // TASK MANAGEMENT
+        // ===========================================
+        function addTask(sectionId, rowId, startDate) {
+            const section = timelineData.sections.find(s => s.id === sectionId);
+            if (!section) return;
+
+            const rows = section.type === 'governance' ? section.governanceRows : section.rows;
+            let row = rowId ? rows.find(r => r.id === rowId) : null;
+
+            // If no row exists, create one automatically
+            if (!row && rows) {
+                if (rows.length === 0) {
+                    const newRow = {
+                        id: 'row-' + Date.now(),
+                        name: 'Tasks',
+                        tasks: [],
+                        milestones: []
+                    };
+                    rows.push(newRow);
+                    row = newRow;
+                } else {
+                    row = rows[0];
+                }
+            }
+
+            if (!row) return;
+
+            const defaultStart = startDate || formatDate(new Date());
+            const defaultEnd = formatDate(new Date(new Date(defaultStart).getTime() + 14 * 24 * 60 * 60 * 1000));
+
+            const content = `
+                <div class="form-group">
+                    <label>Task Name</label>
+                    <input type="text" id="task-name" placeholder="Task name">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start Date</label>
+                        <input type="date" id="task-start" value="${defaultStart}">
+                    </div>
+                    <div class="form-group">
+                        <label>End Date</label>
+                        <input type="date" id="task-end" value="${defaultEnd}">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Color</label>
+                    <input type="color" id="task-color" value="${section.color}">
+                </div>
+            `;
+
+            openModal('Add Task', content, () => {
+                const task = {
+                    id: 'task-' + Date.now(),
+                    name: document.getElementById('task-name').value,
+                    startDate: document.getElementById('task-start').value,
+                    endDate: document.getElementById('task-end').value,
+                    color: document.getElementById('task-color').value,
+                    dependencies: []
+                };
+
+                row.tasks = row.tasks || [];
+                row.tasks.push(task);
+                closeModal();
+                render();
+            });
+        }
+
+        function editTask(sectionId, rowId, taskId) {
+            const section = timelineData.sections.find(s => s.id === sectionId);
+            if (!section) return;
+
+            const rows = section.type === 'governance' ? section.governanceRows : section.rows;
+            const row = rows.find(r => r.id === rowId);
+            if (!row) return;
+
+            const task = row.tasks.find(t => t.id === taskId);
+            if (!task) return;
+
+            // Get all other tasks for dependency selection
+            let allTasks = [];
+            timelineData.sections.forEach(s => {
+                const rs = s.type === 'governance' ? s.governanceRows : s.rows;
+                if (rs) {
+                    rs.forEach(r => {
+                        if (r.tasks) {
+                            r.tasks.forEach(t => {
+                                if (t.id !== taskId) {
+                                    allTasks.push({ id: t.id, name: t.name || 'Unnamed', sectionName: s.name });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+
+            const dependencyOptions = allTasks.map(t =>
+                `<option value="${t.id}" ${task.dependencies?.includes(t.id) ? 'selected' : ''}>${t.sectionName}: ${t.name}</option>`
+            ).join('');
+
+            const content = `
+                <div class="form-group">
+                    <label>Task Name</label>
+                    <input type="text" id="task-name" value="${task.name || ''}">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start Date</label>
+                        <input type="date" id="task-start" value="${task.startDate}">
+                    </div>
+                    <div class="form-group">
+                        <label>End Date</label>
+                        <input type="date" id="task-end" value="${task.endDate}">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Color</label>
+                    <input type="color" id="task-color" value="${task.color}">
+                </div>
+                <div class="form-group">
+                    <label>Dependencies (hold Ctrl/Cmd to select multiple)</label>
+                    <select id="task-dependencies" multiple style="height: 100px;">
+                        ${dependencyOptions}
+                    </select>
+                </div>
+            `;
+
+            openModal('Edit Task', content, () => {
+                task.name = document.getElementById('task-name').value;
+                task.startDate = document.getElementById('task-start').value;
+                task.endDate = document.getElementById('task-end').value;
+                task.color = document.getElementById('task-color').value;
+
+                const select = document.getElementById('task-dependencies');
+                task.dependencies = Array.from(select.selectedOptions).map(opt => opt.value);
+
+                closeModal();
+                render();
+            });
+        }
+
+        function deleteTask(sectionId, rowId, taskId) {
+            const section = timelineData.sections.find(s => s.id === sectionId);
+            if (!section) return;
+
+            const rows = section.type === 'governance' ? section.governanceRows : section.rows;
+            const row = rows.find(r => r.id === rowId);
+            if (!row) return;
+
+            row.tasks = row.tasks.filter(t => t.id !== taskId);
+
+            // Also remove this task from any dependencies
+            timelineData.sections.forEach(s => {
+                const rs = s.type === 'governance' ? s.governanceRows : s.rows;
+                if (rs) {
+                    rs.forEach(r => {
+                        if (r.tasks) {
+                            r.tasks.forEach(t => {
+                                if (t.dependencies) {
+                                    t.dependencies = t.dependencies.filter(d => d !== taskId);
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+
+            render();
+        }
+
+        // ===========================================
+        // MILESTONE MANAGEMENT
+        // ===========================================
+        function addMilestone(sectionId, rowId) {
+            const section = timelineData.sections.find(s => s.id === sectionId);
+            if (!section) return;
+
+            const rows = section.type === 'governance' ? section.governanceRows : section.rows;
+            const row = rows.find(r => r.id === rowId);
+            if (!row) return;
+
+            const content = `
+                <div class="form-group">
+                    <label>Milestone Name</label>
+                    <input type="text" id="milestone-name" placeholder="e.g., KICK-OFF">
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="milestone-date" value="${formatDate(new Date())}">
+                </div>
+                <div class="form-group">
+                    <label>Color</label>
+                    <input type="color" id="milestone-color" value="#000000">
+                </div>
+            `;
+
+            openModal('Add Milestone', content, () => {
+                const milestone = {
+                    id: 'milestone-' + Date.now(),
+                    name: document.getElementById('milestone-name').value,
+                    date: document.getElementById('milestone-date').value,
+                    color: document.getElementById('milestone-color').value
+                };
+
+                row.milestones = row.milestones || [];
+                row.milestones.push(milestone);
+                closeModal();
+                render();
+            });
+        }
+
+        function editMilestone(sectionId, rowId, milestoneId) {
+            const section = timelineData.sections.find(s => s.id === sectionId);
+            if (!section) return;
+
+            const rows = section.type === 'governance' ? section.governanceRows : section.rows;
+            const row = rows.find(r => r.id === rowId);
+            if (!row) return;
+
+            const milestone = row.milestones.find(m => m.id === milestoneId);
+            if (!milestone) return;
+
+            const content = `
+                <div class="form-group">
+                    <label>Milestone Name</label>
+                    <input type="text" id="milestone-name" value="${milestone.name || ''}">
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="milestone-date" value="${milestone.date}">
+                </div>
+                <div class="form-group">
+                    <label>Color</label>
+                    <input type="color" id="milestone-color" value="${milestone.color}">
+                </div>
+            `;
+
+            openModal('Edit Milestone', content, () => {
+                milestone.name = document.getElementById('milestone-name').value;
+                milestone.date = document.getElementById('milestone-date').value;
+                milestone.color = document.getElementById('milestone-color').value;
+                closeModal();
+                render();
+            });
+        }
+
+        function deleteMilestone(sectionId, rowId, milestoneId) {
+            const section = timelineData.sections.find(s => s.id === sectionId);
+            if (!section) return;
+
+            const rows = section.type === 'governance' ? section.governanceRows : section.rows;
+            const row = rows.find(r => r.id === rowId);
+            if (!row) return;
+
+            row.milestones = row.milestones.filter(m => m.id !== milestoneId);
+            render();
+        }
+
+        // ===========================================
+        // MONTH MANAGEMENT
+        // ===========================================
+        function addMonth() {
+            const [year, month] = timelineData.endMonth.split('-').map(Number);
+            let newMonth = month + 1;
+            let newYear = year;
+            if (newMonth > 12) {
+                newMonth = 1;
+                newYear++;
+            }
+            timelineData.endMonth = `${newYear}-${String(newMonth).padStart(2, '0')}`;
+            generateWeekDates();
+            render();
+        }
+
+        function removeMonth() {
+            const [startYear, startMonth] = timelineData.startMonth.split('-').map(Number);
+            const [endYear, endMonth] = timelineData.endMonth.split('-').map(Number);
+
+            // Don't allow less than 1 month
+            if (endYear === startYear && endMonth <= startMonth) return;
+
+            let newMonth = endMonth - 1;
+            let newYear = endYear;
+            if (newMonth < 1) {
+                newMonth = 12;
+                newYear--;
+            }
+            timelineData.endMonth = `${newYear}-${String(newMonth).padStart(2, '0')}`;
+            generateWeekDates();
+            render();
+        }
+
+        // ===========================================
+        // TODAY MARKER
+        // ===========================================
+        function toggleTodayMarker() {
+            timelineData.showTodayMarker = !timelineData.showTodayMarker;
+            renderTodayMarker();
+        }
+
+        // ===========================================
+        // CONTEXT MENU
+        // ===========================================
+        function showContextMenu(e, type, sectionId, rowId, taskId, milestoneId) {
+            e.preventDefault();
+            const menu = document.getElementById('context-menu');
+            let items = '';
+
+            if (type === 'section') {
+                items = `
+                    <div class="context-menu-item" onclick="editSection('${sectionId}')">Edit Section</div>
+                    <div class="context-menu-item" onclick="addRow('${sectionId}')">Add Row</div>
+                    <div class="context-menu-item danger" onclick="deleteSection('${sectionId}')">Delete Section</div>
+                `;
+            } else if (type === 'row') {
+                items = `
+                    <div class="context-menu-item" onclick="editRow('${sectionId}', '${rowId}')">Edit Row</div>
+                    <div class="context-menu-item" onclick="addTask('${sectionId}', '${rowId}')">Add Task</div>
+                    <div class="context-menu-item" onclick="addMilestone('${sectionId}', '${rowId}')">Add Milestone</div>
+                    <div class="context-menu-item danger" onclick="deleteRow('${sectionId}', '${rowId}')">Delete Row</div>
+                `;
+            } else if (type === 'task') {
+                items = `
+                    <div class="context-menu-item" onclick="editTask('${sectionId}', '${rowId}', '${taskId}')">Edit Task</div>
+                    <div class="context-menu-item danger" onclick="deleteTask('${sectionId}', '${rowId}', '${taskId}')">Delete Task</div>
+                `;
+            } else if (type === 'milestone') {
+                items = `
+                    <div class="context-menu-item" onclick="editMilestone('${sectionId}', '${rowId}', '${milestoneId}')">Edit Milestone</div>
+                    <div class="context-menu-item danger" onclick="deleteMilestone('${sectionId}', '${rowId}', '${milestoneId}')">Delete Milestone</div>
+                `;
+            }
+
+            menu.innerHTML = items;
+            menu.style.left = `${e.clientX}px`;
+            menu.style.top = `${e.clientY}px`;
+            menu.classList.remove('hidden');
+        }
+
+        // ===========================================
+        // IMPORT / EXPORT
+        // ===========================================
+        function exportTimeline() {
+            const data = {
+                ...timelineData,
+                title: document.getElementById('timeline-title').value,
+                exportedAt: new Date().toISOString()
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${data.title.replace(/[^a-z0-9]/gi, '_')}_${formatDate(new Date())}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importTimeline(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    timelineData = data;
+                    document.getElementById('timeline-title').value = data.title || 'Project Timeline';
+                    generateWeekDates();
+                    render();
+                } catch (err) {
+                    alert('Error importing file: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset file input
+        }
+
+        // ===========================================
+        // INITIALIZE
+        // ===========================================
+        init();
+    </script>
+</body>
+</html>
