@@ -187,11 +187,40 @@
             justify-content: center;
         }
 
+        .section-name-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
         .section-name {
             font-size: 12px;
             font-weight: 700;
             color: var(--text-dark);
-            margin-bottom: 4px;
+        }
+
+        .section-add-btn {
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: transparent;
+            color: #64748b;
+            font-size: 18px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .section-add-btn:hover {
+            background: var(--bg-light);
+            color: var(--cel-blue);
         }
 
         .section-description {
@@ -217,15 +246,6 @@
             font-size: 10px;
             text-transform: none;
             font-weight: 500;
-        }
-
-        /* Add button row - same height as grid row */
-        .add-row-btn-container {
-            height: var(--row-height);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-top: 1px solid var(--border-color);
         }
 
         /* Timeline Grid Panel */
@@ -296,15 +316,6 @@
 
         .grid-row.section-start {
             border-top: 2px solid var(--border-color);
-        }
-
-        .grid-row.add-btn-row {
-            background: rgba(0,0,0,0.02);
-            cursor: crosshair;
-        }
-
-        .grid-row.add-btn-row:hover {
-            background: rgba(56, 93, 127, 0.05);
         }
 
         .grid-cell {
@@ -582,25 +593,6 @@
 
         .context-menu-item.danger {
             color: var(--cel-red);
-        }
-
-        /* Add buttons in sections */
-        .add-row-btn {
-            padding: 6px 12px;
-            background: transparent;
-            border: 1px dashed var(--border-color);
-            color: #64748b;
-            font-size: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border-radius: 4px;
-            margin-top: 8px;
-        }
-
-        .add-row-btn:hover {
-            background: var(--bg-light);
-            border-color: var(--cel-blue);
-            color: var(--cel-blue);
         }
 
         /* Empty state */
@@ -1116,32 +1108,31 @@
                 const rowCount = rows ? rows.length : 0;
                 const rowHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--row-height'));
 
-                // Calculate total height including add button row if in edit mode
-                const addButtonRows = isEditMode ? 1 : 0;
-                const totalRows = rowCount + addButtonRows;
+                // Minimum 1 row height for empty sections
+                const totalRows = Math.max(rowCount, 1);
 
                 const sectionHeader = document.createElement('div');
                 sectionHeader.className = 'section-header';
-                // Set height to span all rows in grid (including add button row)
-                if (totalRows > 0) {
-                    sectionHeader.style.minHeight = `${totalRows * rowHeight}px`;
-                }
+                // Set height to span all rows in grid
+                sectionHeader.style.minHeight = `${totalRows * rowHeight}px`;
                 sectionHeader.innerHTML = `
                     <div class="section-color-bar" style="background-color: ${section.color}"></div>
                     <div class="section-info">
-                        <div class="section-name">${section.name}</div>
+                        <div class="section-name-row">
+                            <span class="section-name">${section.name}</span>
+                            ${isEditMode ? `<button class="section-add-btn" onclick="event.stopPropagation(); addTask('${section.id}', '${rows && rows.length > 0 ? rows[0].id : ''}')">+</button>` : ''}
+                        </div>
                         ${section.description ? `<div class="section-description">${section.description}</div>` : ''}
-                        ${isEditMode ? `<button class="add-row-btn" style="margin-top: auto;" onclick="addTask('${section.id}', '${rows && rows.length > 0 ? rows[0].id : ''}')">+ Add Task</button>` : ''}
                     </div>
                 `;
                 if (isEditMode) {
                     sectionHeader.addEventListener('contextmenu', (e) => {
-                        if (!e.target.classList.contains('add-row-btn')) {
+                        if (!e.target.classList.contains('section-add-btn')) {
                             showContextMenu(e, 'section', section.id);
                         }
                     });
                     sectionHeader.addEventListener('dblclick', (e) => {
-                        if (!e.target.classList.contains('add-row-btn')) {
+                        if (!e.target.classList.contains('section-add-btn')) {
                             editSection(section.id);
                         }
                     });
@@ -1162,14 +1153,68 @@
             let rowIndex = 0;
             timelineData.sections.forEach((section, sectionIndex) => {
                 const rows = section.type === 'governance' ? section.governanceRows : section.rows;
-                if (!rows) return;
 
-                rows.forEach((row, rIdx) => {
+                // For sections with rows, render each row
+                if (rows && rows.length > 0) {
+                    rows.forEach((row, rIdx) => {
+                        const gridRow = document.createElement('div');
+                        gridRow.className = 'grid-row';
+                        if (rIdx === 0) gridRow.classList.add('section-start');
+                        gridRow.dataset.sectionId = section.id;
+                        gridRow.dataset.rowId = row.id;
+                        gridRow.dataset.rowIndex = rowIndex;
+
+                        // Add cells for visual grid
+                        weekDates.forEach((date, weekIndex) => {
+                            const cell = document.createElement('div');
+                            cell.className = 'grid-cell';
+                            if (date.getDate() <= 7) cell.classList.add('month-start');
+                            gridRow.appendChild(cell);
+                        });
+
+                        // Click and drag to create task (in edit mode)
+                        if (isEditMode) {
+                            gridRow.addEventListener('mousedown', (e) => {
+                                // Only trigger on blank areas (cells), not on tasks/milestones
+                                if (e.button !== 0) return;
+                                if (e.target.classList.contains('grid-cell') || e.target.classList.contains('grid-row')) {
+                                    e.preventDefault();
+                                    startTaskCreation(e, section.id, gridRow);
+                                }
+                            });
+                        }
+
+                        gridBody.appendChild(gridRow);
+
+                        // Sort and render tasks by start date
+                        if (row.tasks && row.tasks.length > 0) {
+                            const sortedTasks = [...row.tasks].sort((a, b) =>
+                                new Date(a.startDate) - new Date(b.startDate)
+                            );
+                            sortedTasks.forEach(task => {
+                                renderTask(task, gridRow, section, row);
+                            });
+                        }
+
+                        // Render milestones
+                        if (row.milestones) {
+                            row.milestones.forEach(milestone => {
+                                renderMilestone(milestone, gridRow, section, row);
+                            });
+                        }
+
+                        // Render recurring milestones for governance
+                        if (row.recurringMilestones && section.type === 'governance') {
+                            renderRecurringMilestones(row.recurringMilestones, gridRow, section, row);
+                        }
+
+                        rowIndex++;
+                    });
+                } else {
+                    // Empty section - create a placeholder row
                     const gridRow = document.createElement('div');
-                    gridRow.className = 'grid-row';
-                    if (rIdx === 0) gridRow.classList.add('section-start');
+                    gridRow.className = 'grid-row section-start';
                     gridRow.dataset.sectionId = section.id;
-                    gridRow.dataset.rowId = row.id;
                     gridRow.dataset.rowIndex = rowIndex;
 
                     // Add cells for visual grid
@@ -1180,62 +1225,18 @@
                         gridRow.appendChild(cell);
                     });
 
-                    // Double-click to add task
-                    gridRow.addEventListener('dblclick', (e) => {
-                        if (e.target.classList.contains('grid-cell') || e.target.classList.contains('grid-row')) {
-                            const rect = gridRow.getBoundingClientRect();
-                            const gridRect = document.getElementById('grid-body').getBoundingClientRect();
-                            const x = e.clientX - gridRect.left + document.getElementById('scroll-container').scrollLeft - 200;
-                            addTask(section.id, row.id, getDateFromPosition(x));
-                        }
-                    });
+                    // Click and drag to create task (in edit mode)
+                    if (isEditMode) {
+                        gridRow.addEventListener('mousedown', (e) => {
+                            if (e.button !== 0) return;
+                            if (e.target.classList.contains('grid-cell') || e.target.classList.contains('grid-row')) {
+                                e.preventDefault();
+                                startTaskCreation(e, section.id, gridRow);
+                            }
+                        });
+                    }
 
                     gridBody.appendChild(gridRow);
-
-                    // Render tasks
-                    if (row.tasks) {
-                        row.tasks.forEach(task => {
-                            renderTask(task, gridRow, section, row);
-                        });
-                    }
-
-                    // Render milestones
-                    if (row.milestones) {
-                        row.milestones.forEach(milestone => {
-                            renderMilestone(milestone, gridRow, section, row);
-                        });
-                    }
-
-                    // Render recurring milestones for governance
-                    if (row.recurringMilestones && section.type === 'governance') {
-                        renderRecurringMilestones(row.recurringMilestones, gridRow, section, row);
-                    }
-
-                    rowIndex++;
-                });
-
-                // Add empty row for the "+ Add Task" button area (only in edit mode)
-                if (isEditMode) {
-                    const addBtnRow = document.createElement('div');
-                    addBtnRow.className = 'grid-row add-btn-row';
-                    addBtnRow.dataset.sectionId = section.id;
-
-                    // Add cells for visual grid
-                    weekDates.forEach((date, weekIndex) => {
-                        const cell = document.createElement('div');
-                        cell.className = 'grid-cell';
-                        if (date.getDate() <= 7) cell.classList.add('month-start');
-                        addBtnRow.appendChild(cell);
-                    });
-
-                    // Add mousedown handler for drag-to-create task
-                    addBtnRow.addEventListener('mousedown', (e) => {
-                        if (e.button !== 0) return; // Only left click
-                        e.preventDefault();
-                        startTaskCreation(e, section.id, addBtnRow);
-                    });
-
-                    gridBody.appendChild(addBtnRow);
                     rowIndex++;
                 }
             });
