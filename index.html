@@ -37,7 +37,7 @@
         /* Header */
         .header {
             background: white;
-            padding: 15px 20px;
+            padding: 15px 40px;
             border-bottom: 2px solid var(--border-color);
             display: flex;
             align-items: center;
@@ -127,6 +127,8 @@
             flex-direction: column;
             height: calc(100vh - 70px);
             overflow: hidden;
+            padding: 20px 40px;
+            background: var(--bg-light);
         }
 
         /* Unified scroll container */
@@ -134,6 +136,9 @@
             display: flex;
             flex: 1;
             overflow: auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
 
         /* Section Labels Panel - now part of scroll container */
@@ -896,8 +901,26 @@
         function init() {
             document.getElementById('timeline-title').value = timelineData.title;
             generateWeekDates();
+            calculateWeekWidth();
             render();
             setupEventListeners();
+        }
+
+        function calculateWeekWidth() {
+            // Get available width: viewport - padding (40px * 2) - section labels (200px) - scrollbar buffer (20px)
+            const mainContainer = document.querySelector('.main-container');
+            const containerPadding = 80; // 40px * 2
+            const sectionLabelWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--section-label-width'));
+            const scrollbarBuffer = 20;
+
+            const availableWidth = window.innerWidth - containerPadding - sectionLabelWidth - scrollbarBuffer;
+            const weekCount = weekDates.length;
+
+            // Calculate week width, with a minimum of 40px and maximum of 80px
+            let weekWidth = Math.floor(availableWidth / weekCount);
+            weekWidth = Math.max(40, Math.min(80, weekWidth));
+
+            document.documentElement.style.setProperty('--week-width', `${weekWidth}px`);
         }
 
         function setupEventListeners() {
@@ -911,6 +934,16 @@
 
             document.addEventListener('mousemove', handleDrag);
             document.addEventListener('mouseup', handleDragEnd);
+
+            // Recalculate week width on window resize
+            let resizeTimeout;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    calculateWeekWidth();
+                    render();
+                }, 150);
+            });
         }
 
         // ===========================================
@@ -2307,6 +2340,7 @@
             }
             timelineData.endMonth = `${newYear}-${String(newMonth).padStart(2, '0')}`;
             generateWeekDates();
+            calculateWeekWidth();
             render();
         }
 
@@ -2325,6 +2359,7 @@
             }
             timelineData.endMonth = `${newYear}-${String(newMonth).padStart(2, '0')}`;
             generateWeekDates();
+            calculateWeekWidth();
             render();
         }
 
@@ -2407,6 +2442,7 @@
                     timelineData = data;
                     document.getElementById('timeline-title').value = data.title || 'Project Timeline';
                     generateWeekDates();
+                    calculateWeekWidth();
                     render();
                 } catch (err) {
                     alert('Error importing file: ' + err.message);
