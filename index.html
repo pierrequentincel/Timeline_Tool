@@ -295,6 +295,11 @@
 
         .grid-row.add-btn-row {
             background: rgba(0,0,0,0.02);
+            cursor: crosshair;
+        }
+
+        .grid-row.add-btn-row:hover {
+            background: rgba(56, 93, 127, 0.05);
         }
 
         .grid-cell {
@@ -852,6 +857,12 @@
         let addingDependency = false;
         let dependencySource = null;
 
+        // Task creation by drag
+        let isCreatingTask = false;
+        let createTaskSectionId = null;
+        let createTaskStartX = 0;
+        let createTaskPreview = null;
+
         // ===========================================
         // INITIALIZATION
         // ===========================================
@@ -1157,6 +1168,13 @@
                         addBtnRow.appendChild(cell);
                     });
 
+                    // Add mousedown handler for drag-to-create task
+                    addBtnRow.addEventListener('mousedown', (e) => {
+                        if (e.button !== 0) return; // Only left click
+                        e.preventDefault();
+                        startTaskCreation(e, section.id, addBtnRow);
+                    });
+
                     gridBody.appendChild(addBtnRow);
                     rowIndex++;
                 }
@@ -1428,6 +1446,19 @@
                     }
                 }
             }
+
+            // Handle task creation drag
+            if (isCreatingTask && createTaskPreview) {
+                const gridBody = document.getElementById('grid-body');
+                const gridRect = gridBody.getBoundingClientRect();
+                const currentX = e.clientX - gridRect.left + document.getElementById('scroll-container').scrollLeft;
+
+                const startX = Math.min(createTaskStartX, currentX);
+                const width = Math.abs(currentX - createTaskStartX);
+
+                createTaskPreview.style.left = `${startX}px`;
+                createTaskPreview.style.width = `${Math.max(width, 10)}px`;
+            }
         }
 
         function handleDragEnd(e) {
@@ -1467,6 +1498,127 @@
 
                 render();
             }
+
+            // Handle task creation end
+            if (isCreatingTask && createTaskPreview) {
+                const gridBody = document.getElementById('grid-body');
+                const gridRect = gridBody.getBoundingClientRect();
+                const endX = e.clientX - gridRect.left + document.getElementById('scroll-container').scrollLeft;
+
+                const startX = Math.min(createTaskStartX, endX);
+                const finalEndX = Math.max(createTaskStartX, endX);
+
+                const startDate = getDateFromPosition(startX);
+                const endDate = getDateFromPosition(finalEndX);
+
+                // Remove preview
+                createTaskPreview.remove();
+                createTaskPreview = null;
+
+                const sectionId = createTaskSectionId;
+
+                // Reset state
+                isCreatingTask = false;
+                createTaskSectionId = null;
+                createTaskStartX = 0;
+                document.body.style.cursor = '';
+
+                // Open dialog with the dates
+                addTaskWithDates(sectionId, startDate, endDate);
+            }
+        }
+
+        // ===========================================
+        // TASK CREATION BY DRAG
+        // ===========================================
+        function startTaskCreation(e, sectionId, rowElement) {
+            isCreatingTask = true;
+            createTaskSectionId = sectionId;
+
+            const gridBody = document.getElementById('grid-body');
+            const gridRect = gridBody.getBoundingClientRect();
+            createTaskStartX = e.clientX - gridRect.left + document.getElementById('scroll-container').scrollLeft;
+
+            // Get the section to use its color
+            const section = timelineData.sections.find(s => s.id === sectionId);
+            const color = section ? section.color : '#CB333B';
+
+            // Create preview element
+            createTaskPreview = document.createElement('div');
+            createTaskPreview.className = 'task-bar task-preview';
+            createTaskPreview.style.left = `${createTaskStartX}px`;
+            createTaskPreview.style.width = '10px';
+            createTaskPreview.style.backgroundColor = color;
+            createTaskPreview.style.opacity = '0.6';
+            createTaskPreview.style.pointerEvents = 'none';
+
+            rowElement.appendChild(createTaskPreview);
+            document.body.style.cursor = 'crosshair';
+        }
+
+        function addTaskWithDates(sectionId, startDate, endDate) {
+            const section = timelineData.sections.find(s => s.id === sectionId);
+            if (!section) return;
+
+            const rows = section.type === 'governance' ? section.governanceRows : section.rows;
+            let row = null;
+
+            // If no row exists, create one automatically
+            if (!rows || rows.length === 0) {
+                const newRow = {
+                    id: 'row-' + Date.now(),
+                    name: 'Tasks',
+                    tasks: [],
+                    milestones: []
+                };
+                if (section.type === 'governance') {
+                    section.governanceRows = section.governanceRows || [];
+                    section.governanceRows.push(newRow);
+                } else {
+                    section.rows = section.rows || [];
+                    section.rows.push(newRow);
+                }
+                row = newRow;
+            } else {
+                row = rows[0];
+            }
+
+            const content = `
+                <div class="form-group">
+                    <label>Task Name</label>
+                    <input type="text" id="task-name" placeholder="Task name">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start Date</label>
+                        <input type="date" id="task-start" value="${startDate}">
+                    </div>
+                    <div class="form-group">
+                        <label>End Date</label>
+                        <input type="date" id="task-end" value="${endDate}">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Color</label>
+                    <input type="color" id="task-color" value="${section.color}">
+                </div>
+            `;
+
+            openModal('Add Task', content, () => {
+                const task = {
+                    id: 'task-' + Date.now(),
+                    name: document.getElementById('task-name').value,
+                    startDate: document.getElementById('task-start').value,
+                    endDate: document.getElementById('task-end').value,
+                    color: document.getElementById('task-color').value,
+                    dependencies: []
+                };
+
+                row.tasks = row.tasks || [];
+                row.tasks.push(task);
+                closeModal();
+                render();
+            });
         }
 
         // ===========================================
