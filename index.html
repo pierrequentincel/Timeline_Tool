@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project Timeline Tool</title>
-    <link rel="icon" type="image/png" href="../ENO_Tool/pictures/ATOM_logo_crop.png">
+    <link rel="icon" type="image/png" href="pictures/ATOM_logo_crop.png">
     <style>
         :root {
             --cel-red: #CB333B;
@@ -165,13 +165,30 @@
         }
 
         .section-block {
-            border-bottom: 2px solid var(--border-color);
+            position: relative;
             background: white;
         }
 
+        /* Invisible row placeholders to match grid row heights exactly */
+        .section-row-spacer {
+            height: var(--row-height);
+            border-bottom: 1px solid transparent; /* Same as grid-row but invisible */
+        }
+
+        .section-row-spacer:first-child {
+            border-top: 2px solid var(--border-color); /* Matches grid-row.section-start */
+        }
+
+        /* The section header spans all rows via absolute positioning */
         .section-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             display: flex;
             align-items: stretch;
+            pointer-events: auto;
         }
 
         .section-color-bar {
@@ -184,7 +201,8 @@
             padding: 10px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start;
+            overflow: hidden;
         }
 
         .section-name-row {
@@ -878,6 +896,7 @@
         let dragStartX = 0;
         let dragOriginalLeft = 0;
         let dragOriginalWidth = 0;
+        let didDrag = false; // Track if actual drag movement occurred
         let addingDependency = false;
         let dependencySource = null;
 
@@ -1041,7 +1060,28 @@
         // ===========================================
         // RENDERING
         // ===========================================
+        // Store calculated section heights (for text overflow handling)
+        let sectionHeights = {};
+
+        function calculateSectionHeights() {
+            sectionHeights = {};
+            const rowHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--row-height'));
+
+            timelineData.sections.forEach(section => {
+                const rows = section.type === 'governance' ? section.governanceRows : section.rows;
+                // Row count is simply the number of data rows (minimum 1 for empty sections)
+                // Text overflow is clipped - user can hover/scroll to see full text
+                const rowCount = Math.max(rows ? rows.length : 0, 1);
+
+                sectionHeights[section.id] = {
+                    rowCount: rowCount,
+                    totalHeight: rowCount * rowHeight
+                };
+            });
+        }
+
         function render() {
+            calculateSectionHeights();
             renderHeaders();
             renderSectionLabels();
             renderGridBody();
@@ -1097,24 +1137,30 @@
             }
 
             const isEditMode = !timelineData.presentationMode;
+            const rowHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--row-height'));
 
             timelineData.sections.forEach((section, sectionIndex) => {
                 const sectionBlock = document.createElement('div');
                 sectionBlock.className = 'section-block';
                 sectionBlock.dataset.sectionId = section.id;
 
-                // Calculate section height based on number of rows
+                // Get the calculated height for this section
+                const sectionHeight = sectionHeights[section.id];
+                const totalRows = sectionHeight ? sectionHeight.rowCount : 1;
+
+                // Get the rows for this section (for the + button)
                 const rows = section.type === 'governance' ? section.governanceRows : section.rows;
-                const rowCount = rows ? rows.length : 0;
-                const rowHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--row-height'));
 
-                // Minimum 1 row height for empty sections
-                const totalRows = Math.max(rowCount, 1);
+                // Create invisible row spacers that match grid row heights exactly
+                for (let i = 0; i < totalRows; i++) {
+                    const spacer = document.createElement('div');
+                    spacer.className = 'section-row-spacer';
+                    sectionBlock.appendChild(spacer);
+                }
 
+                // Create the section header that spans all rows (positioned absolutely)
                 const sectionHeader = document.createElement('div');
                 sectionHeader.className = 'section-header';
-                // Set height to span all rows in grid
-                sectionHeader.style.minHeight = `${totalRows * rowHeight}px`;
                 sectionHeader.innerHTML = `
                     <div class="section-color-bar" style="background-color: ${section.color}"></div>
                     <div class="section-info">
@@ -1211,7 +1257,7 @@
                         rowIndex++;
                     });
                 } else {
-                    // Empty section - create a placeholder row
+                    // Empty section - create a single placeholder row
                     const gridRow = document.createElement('div');
                     gridRow.className = 'grid-row section-start';
                     gridRow.dataset.sectionId = section.id;
@@ -1276,22 +1322,27 @@
             taskEl.appendChild(leftHandle);
             taskEl.appendChild(rightHandle);
 
-            // Drag to move
+            // Drag to move (mousedown starts potential drag)
             taskEl.addEventListener('mousedown', (e) => {
                 if (!e.target.classList.contains('resize-handle')) {
                     startDrag(e, task, 'move');
                 }
             });
 
-            // Context menu
-            taskEl.addEventListener('contextmenu', (e) => {
+            // Single click to show context menu (only if not dragging)
+            taskEl.addEventListener('click', (e) => {
                 e.stopPropagation();
-                showContextMenu(e, 'task', section.id, row.id, task.id);
+                // Only show context menu if we didn't actually drag
+                if (!didDrag) {
+                    showContextMenu(e, 'task', section.id, row.id, task.id);
+                }
             });
 
             // Double-click to edit
             taskEl.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
+                // Hide context menu first if open
+                document.getElementById('context-menu').classList.add('hidden');
                 editTask(section.id, row.id, task.id);
             });
 
@@ -1469,6 +1520,7 @@
             dragTarget = task;
             dragType = type;
             dragStartX = e.clientX;
+            didDrag = false; // Reset drag flag
 
             const taskEl = document.querySelector(`[data-task-id="${task.id}"]`);
             dragOriginalLeft = parseFloat(taskEl.style.left);
@@ -1494,6 +1546,12 @@
             // Handle task drag
             if (isDragging && dragTarget) {
                 const deltaX = e.clientX - dragStartX;
+
+                // Only consider it a drag if moved more than 3 pixels
+                if (Math.abs(deltaX) > 3) {
+                    didDrag = true;
+                }
+
                 const taskEl = document.querySelector(`[data-task-id="${dragTarget.id}"]`);
 
                 if (dragType === 'move') {
@@ -1547,16 +1605,18 @@
                 const newLeft = parseFloat(taskEl.style.left);
                 const newWidth = parseFloat(taskEl.style.width);
 
-                // Update task dates
-                dragTarget.startDate = getDateFromPosition(newLeft);
-                dragTarget.endDate = getDateFromPosition(newLeft + newWidth);
+                // Only update if we actually dragged
+                if (didDrag) {
+                    // Update task dates
+                    dragTarget.startDate = getDateFromPosition(newLeft);
+                    dragTarget.endDate = getDateFromPosition(newLeft + newWidth);
+                    render();
+                }
 
                 isDragging = false;
                 dragTarget = null;
                 dragType = null;
                 document.body.style.cursor = '';
-
-                render();
             }
 
             // Handle milestone drag end
@@ -1688,24 +1748,16 @@
             `;
 
             openModal('Add Task', content, () => {
-                const endDate = document.getElementById('task-end').value;
-                const delayedTo = document.getElementById('task-delayed').value;
-
-                // Validate delayed date is after end date
-                if (delayedTo && delayedTo <= endDate) {
-                    alert('Delayed To date must be later than End Date');
-                    return;
-                }
-
                 const task = {
                     id: 'task-' + Date.now(),
                     name: document.getElementById('task-name').value,
                     startDate: document.getElementById('task-start').value,
-                    endDate: endDate,
+                    endDate: document.getElementById('task-end').value,
                     color: document.getElementById('task-color').value,
                     dependencies: []
                 };
 
+                const delayedTo = document.getElementById('task-delayed').value;
                 if (delayedTo) {
                     task.delayedTo = delayedTo;
                 }
@@ -1715,6 +1767,19 @@
                 closeModal();
                 render();
             });
+
+            // Set delayed-to default to end date when clicked (if empty)
+            setTimeout(() => {
+                const endDateInput = document.getElementById('task-end');
+                const delayedInput = document.getElementById('task-delayed');
+                if (endDateInput && delayedInput) {
+                    delayedInput.addEventListener('focus', () => {
+                        if (!delayedInput.value) {
+                            delayedInput.value = endDateInput.value;
+                        }
+                    });
+                }
+            }, 100);
         }
 
         // ===========================================
@@ -1742,8 +1807,24 @@
             currentModalSave = null;
         }
 
-        // Keyboard handler for modals
+        // Keyboard handler for modals and context menu
         document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                // Close context menu if open
+                const contextMenu = document.getElementById('context-menu');
+                if (!contextMenu.classList.contains('hidden')) {
+                    contextMenu.classList.add('hidden');
+                    return;
+                }
+                // Close modal if open
+                const modal = document.getElementById('modal-overlay');
+                if (!modal.classList.contains('hidden')) {
+                    closeModal();
+                }
+                return;
+            }
+
             const modal = document.getElementById('modal-overlay');
             if (modal.classList.contains('hidden')) return;
 
@@ -1753,9 +1834,6 @@
                     e.preventDefault();
                     if (currentModalSave) currentModalSave();
                 }
-            } else if (e.key === 'Escape') {
-                e.preventDefault();
-                closeModal();
             }
         });
 
@@ -2090,24 +2168,16 @@
             `;
 
             openModal('Add Task', content, () => {
-                const endDate = document.getElementById('task-end').value;
-                const delayedTo = document.getElementById('task-delayed').value;
-
-                // Validate delayed date is after end date
-                if (delayedTo && delayedTo <= endDate) {
-                    alert('Delayed To date must be later than End Date');
-                    return;
-                }
-
                 const task = {
                     id: 'task-' + Date.now(),
                     name: document.getElementById('task-name').value,
                     startDate: document.getElementById('task-start').value,
-                    endDate: endDate,
+                    endDate: document.getElementById('task-end').value,
                     color: document.getElementById('task-color').value,
                     dependencies: []
                 };
 
+                const delayedTo = document.getElementById('task-delayed').value;
                 if (delayedTo) {
                     task.delayedTo = delayedTo;
                 }
@@ -2117,6 +2187,19 @@
                 closeModal();
                 render();
             });
+
+            // Set delayed-to default to end date when clicked (if empty)
+            setTimeout(() => {
+                const endDateInput = document.getElementById('task-end');
+                const delayedInput = document.getElementById('task-delayed');
+                if (endDateInput && delayedInput) {
+                    delayedInput.addEventListener('focus', () => {
+                        if (!delayedInput.value) {
+                            delayedInput.value = endDateInput.value;
+                        }
+                    });
+                }
+            }, 100);
         }
 
         function editTask(sectionId, rowId, taskId) {
@@ -2183,20 +2266,12 @@
             `;
 
             openModal('Edit Task', content, () => {
-                const endDate = document.getElementById('task-end').value;
-                const delayedTo = document.getElementById('task-delayed').value;
-
-                // Validate delayed date is after end date
-                if (delayedTo && delayedTo <= endDate) {
-                    alert('Delayed To date must be later than End Date');
-                    return;
-                }
-
                 task.name = document.getElementById('task-name').value;
                 task.startDate = document.getElementById('task-start').value;
-                task.endDate = endDate;
+                task.endDate = document.getElementById('task-end').value;
                 task.color = document.getElementById('task-color').value;
 
+                const delayedTo = document.getElementById('task-delayed').value;
                 if (delayedTo) {
                     task.delayedTo = delayedTo;
                 } else {
@@ -2209,6 +2284,19 @@
                 closeModal();
                 render();
             });
+
+            // Set delayed-to default to end date when clicked (if empty)
+            setTimeout(() => {
+                const endDateInput = document.getElementById('task-end');
+                const delayedInput = document.getElementById('task-delayed');
+                if (endDateInput && delayedInput) {
+                    delayedInput.addEventListener('focus', () => {
+                        if (!delayedInput.value) {
+                            delayedInput.value = endDateInput.value;
+                        }
+                    });
+                }
+            }, 100);
         }
 
         function deleteTask(sectionId, rowId, taskId) {
